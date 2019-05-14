@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Financial Transaction Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+    <script src="https://cdn.rawgit.com/harvesthq/chosen/gh-pages/chosen.jquery.min.js"></script>
+    <link href="https://cdn.rawgit.com/harvesthq/chosen/gh-pages/chosen.min.css" rel="stylesheet" />
+
+    <style>
+        html,
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #dbdbdb;
+        }
+
+        .CenteredContent {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .Body {
+            width: 95vw;
+            height: 95vh;
+            overflow: auto;
+        }
+
+        .Form {
+            border: 3px solid #a5a4a4;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #dbdbdb;
+            min-width: 30vw;
+            max-height: 95vh;
+        }
+
+        .Form input[type=text],
+        .Form input[type=date],
+        .Form select,
+        .Form input[type=password] {
+            width: 100%;
+            padding: 12px 20px;
+            margin: 8px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            text-align: center;
+            background-color: white;
+        }
+
+        .Form input[type=submit] {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            padding: 14px 20px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .Button {
+            background-color: rgba(28, 85, 241, 0.863);
+            color: white;
+            padding: 10px;
+            margin: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        div.OpacityProvider {
+            display: none;
+            top: 0;
+            left: 0;
+            min-width: 100%;
+            min-height: 100%;
+            /*these make the opacity provider fill the screen*/
+            opacity: 0.9;
+            filter: alpha(opacity=50);
+            position: absolute;
+            background: black;
+            z-index: 100;
+        }
+
+        div.PopupData {
+            width: 50vw;
+            height: 30vh;
+            display: none;
+            background: #dbdbdb;
+            border: 1px solid #dbdbdb;
+            border-radius: 4px;
+            z-index: 101;
+            /*must be greater than the opacity provider*/
+            position: fixed;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="CenteredContent">
+        <div class="Body CenteredContent">
+            <form class="Form" method="POST" onsubmit="TransactionSubmission(this)">
+                <label for="Amount">Amount (Rial)</label>
+                <input type="text" name="Amount" id="Amount" autocomplete="off">
+
+                <hr>
+
+                <label for="Date">Date</label>
+                <input type="date" name="Date" id="Date">
+
+                <hr>
+
+                <div style="margin: 20px 0px;">
+                    <label for="Tag">Tag</label>
+                    <select name="Tag" multiple data-placeholder="Begin typing a tag to filter..." multiple
+                        class="chosen-select">
+                        <?!= BuildTagsOptions(GetTags(GetDataSheet(GetSpreadSheet()))) ?>
+                    </select>
+                    <button class="Button" id="Show">Add</button>
+                </div>
+
+                <hr>
+
+                <label for="Description">Description</label>
+                <input type="text" name="Description" autocomplete="off">
+
+                <hr>
+
+                <input type="submit" value="Submit">
+            </form>
+
+            <div class="Popup PopupData">
+                <button id="Close" class="Button" style="float: right;">Close</button>
+                <form class="Form" onsubmit="AddTag(this)" style="border: none;">
+                    <label>Tag Name</label>
+                    <input type="text" name="Tag" autocomplete="off">
+                    <hr>
+                    <input type="submit" value="Add" style="background-color: darkslateblue;">
+                </form>
+            </div>
+
+            <div class="Popup OpacityProvider"></div>
+        </div>
+    </div>
+
+    <script>
+        function AddTag(Form) {
+            google.script.run.withSuccessHandler(HandleFormSubmission).AddTag(Form);
+        }
+
+        function TransactionSubmission(Form) {
+            google.script.run.withSuccessHandler(HandleFormSubmission).HandleTransaction(Form);
+        }
+
+        function HandleFormSubmission(Message) {
+            alert(Message);
+        }
+
+        $(document).ready(function () {
+            //Handle popup funciton
+            $("#Show").click(function () {
+                $("div.Popup").show();
+                return false;
+            });
+            $("#Close").click(function () {
+                $("div.Popup").hide();
+                return false;
+            });
+
+
+            // Prevent forms from submitting.
+            var forms = document.querySelectorAll('form');
+            for (var i = 0; i < forms.length; i++) {
+                forms[i].addEventListener('submit', function (event) {
+                    event.preventDefault();
+                });
+            }
+
+            //Set tag input
+            $(".chosen-select").chosen({
+                no_results_text: "Oops, nothing found!"
+            });
+
+            //Set date input to today
+            var now = new Date();
+            var day = ("0" + now.getDate()).slice(-2);
+            var month = ("0" + (now.getMonth() + 1)).slice(-2);
+            var today = now.getFullYear() + "-" + (month) + "-" + (day);
+            $("#Date").val(today);
+
+            //Handle Amout input number comma seperate feature
+            var textbox = $("#Amount");
+            var hidden = "#ThousandSeperator_num";
+            $(textbox).keyup(function () {
+                var num = $(textbox).val();
+                var comma = /,/g;
+                num = num.replace(comma, "");
+                $(hidden).val(num);
+                var numCommas = addCommas(num);
+                $(textbox).val(numCommas);
+            });
+        });
+        function addCommas(nStr) {
+            nStr += "";
+            var comma = /,/g;
+            nStr = nStr.replace(comma, "");
+            x = nStr.split(".");
+            x1 = x[0];
+            x2 = x.length > 1 ? "." + x[1] : "";
+            var rgx = /(\d+)(\d{3})/;
+            while (rgx.test(x1)) {
+                x1 = x1.replace(rgx, "$1" + "," + "$2");
+            }
+            return x1 + x2;
+        }
+
+        //Make Amout input to just accept numbers
+        // Restrict input to digits and "." by using a regular expression filter.
+        setInputFilter(document.getElementById("Amount"), function (value) {
+            return /^[-]?(\d*[,]*\d*)*$/.test(value);
+        });
+        // Restricts input for the given textbox to the given inputFilter.
+        function setInputFilter(textbox, inputFilter) {
+            ["input", "keydown", "keyup", "mousedown", "mouseup", "select", "contextmenu", "drop"].forEach(function (event) {
+                textbox.addEventListener(event, function () {
+                    if (inputFilter(this.value)) {
+                        this.oldValue = this.value;
+                        this.oldSelectionStart = this.selectionStart;
+                        this.oldSelectionEnd = this.selectionEnd;
+                    } else if (this.hasOwnProperty("oldValue")) {
+                        this.value = this.oldValue;
+                        this.setSelectionRange(this.oldSelectionStart, this.oldSelectionEnd);
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
