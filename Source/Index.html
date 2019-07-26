@@ -106,7 +106,7 @@
     <div class="CenteredContent">
         <div class="Body CenteredContent">
             <form class="Form" method="POST" onsubmit="TransactionSubmission(this)">
-                <label for="Amount">Amount (Rial)</label>
+                <label for="Amount">Amount</label>
                 <input type="text" name="Amount" id="Amount" autocomplete="off">
 
                 <hr>
@@ -118,9 +118,9 @@
 
                 <div style="margin: 20px 0px;">
                     <label for="Tag">Tag</label>
-                    <select name="Tag" multiple data-placeholder="Begin typing a tag to filter..." multiple
+                    <select name="Tag" multiple data-placeholder="Begin typing a tag to filter..." id="TagsSelect"
                         class="chosen-select">
-                        <?!= BuildTagsOptions(GetTags(GetDataSheet(GetSpreadSheet()))) ?>
+                        <?!= BuildTagsOptions(GetTags()) ?>
                     </select>
                     <button class="Button" id="Show">Add</button>
                 </div>
@@ -152,10 +152,27 @@
     <script>
         function AddTag(Form) {
             google.script.run.withSuccessHandler(HandleFormSubmission).AddTag(Form);
+            location.reload(true);
         }
-
+        
         function TransactionSubmission(Form) {
-            google.script.run.withSuccessHandler(HandleFormSubmission).HandleTransaction(Form);
+            var Result = {};
+            Result.Amount = Form.Amount.value;
+            Result.Date = Form.Date.value;
+            Result.Description = Form.Description.value;
+            Result.TagsName = "";
+            Result.TagsId = "";
+
+  	        var SelectedOptions = $("#TagsSelect option:selected");
+            $.each(SelectedOptions ,function(Key,Val){ 
+                Result.TagsName += Val.text + ",";
+                Result.TagsId += Val.value + ",";
+            });
+
+  	        Result.TagsName = Result.TagsName.trim().substring(0, Result.TagsName.length - 1);
+            Result.TagsId = Result.TagsId.trim().substring(0, Result.TagsId.length - 1);
+                       
+            google.script.run.withSuccessHandler(HandleFormSubmission).HandleTransaction(Result);
         }
 
         function HandleFormSubmission(Message) {
